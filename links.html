@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Stash - 我的連結倉庫</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --danger-color: #ff6b6b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin: 0;
+        }
+
+        /* 輸入區域樣式 */
+        .input-group {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            border-color: var(--primary-color);
+        }
+
+        button#add-btn {
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        button#add-btn:hover {
+            background-color: #357abd;
+        }
+
+        /* 連結列表樣式 */
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li.link-card {
+            background: var(--card-bg);
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        li.link-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .link-info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .link-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+            text-decoration: none;
+            color: #2c3e50;
+        }
+
+        .link-title:hover {
+            color: var(--primary-color);
+            text-decoration: underline;
+        }
+
+        .link-url {
+            font-size: 12px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 20px;
+            margin-left: 10px;
+            padding: 5px;
+        }
+
+        .delete-btn:hover {
+            color: var(--danger-color);
+        }
+
+        /* 響應式設計 */
+        @media (min-width: 600px) {
+            .input-group {
+                flex-direction: row;
+            }
+            input[type="text"] { flex: 1; }
+            input[type="url"] { flex: 2; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>🔗 Link Stash</h1>
+            <p>保存網頁，隨時閱讀</p>
+        </header>
+
+        <div class="input-group">
+            <input type="text" id="site-name" placeholder="網站名稱 (例如: Google)" required>
+            <input type="url" id="site-url" placeholder="網址 (例如: https://google.com)" required>
+            <button id="add-btn">新增</button>
+        </div>
+
+        <ul id="link-list">
+            </ul>
+    </div>
+
+    <script>
+        // DOM 元素選取
+        const siteNameInput = document.getElementById('site-name');
+        const siteUrlInput = document.getElementById('site-url');
+        const addBtn = document.getElementById('add-btn');
+        const linkList = document.getElementById('link-list');
+
+        // 1. 初始化：從 LocalStorage 讀取資料
+        let links = JSON.parse(localStorage.getItem('myLinks')) || [];
+        renderLinks();
+
+        // 2. 新增連結功能
+        addBtn.addEventListener('click', () => {
+            const name = siteNameInput.value.trim();
+            let url = siteUrlInput.value.trim();
+
+            if (!name || !url) {
+                alert('請輸入名稱和網址！');
+                return;
+            }
+
+            // 簡單的網址補全 (如果使用者沒打 http)
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = `https://${url}`;
+            }
+
+            const newLink = {
+                id: Date.now(), // 使用時間戳記當作唯一 ID
+                name: name,
+                url: url,
+                date: new Date().toLocaleDateString()
+            };
+
+            links.unshift(newLink); // 加到陣列最前面
+            saveAndRender();
+            
+            // 清空輸入框
+            siteNameInput.value = '';
+            siteUrlInput.value = '';
+        });
+
+        // 3. 刪除連結功能
+        function deleteLink(id) {
+            links = links.filter(link => link.id !== id);
+            saveAndRender();
+        }
+
+        // 4. 儲存到 LocalStorage 並重新渲染畫面
+        function saveAndRender() {
+            localStorage.setItem('myLinks', JSON.stringify(links));
+            renderLinks();
+        }
+
+        // 5. 渲染畫面邏輯
+        function renderLinks() {
+            linkList.innerHTML = ''; // 清空列表
+
+            links.forEach(link => {
+                const li = document.createElement('li');
+                li.className = 'link-card';
+                li.innerHTML = `
+                    <div class="link-info">
+                        <a href="${link.url}" target="_blank" class="link-title">${link.name}</a>
+                        <span class="link-url">${link.url} • ${link.date}</span>
+                    </div>
+                    <button class="delete-btn" onclick="deleteLink(${link.id})">&times;</button>
+                `;
+                linkList.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
